@@ -1,0 +1,516 @@
+// ignore: import_of_legacy_library_into_null_safe
+// ignore_for_file: unused_result
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:firebase_core/firebase_core.dart' as firebase_core;
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_pos/GlobalComponents/button_global.dart';
+import 'package:mobile_pos/Screens/Customers/Model/customer_model.dart';
+import 'package:mobile_pos/constant.dart';
+import 'package:nb_utils/nb_utils.dart';
+
+import '../../Provider/customer_provider.dart';
+import 'customer_list.dart';
+import 'package:mobile_pos/generated/l10n.dart' as lang;
+
+// ignore: must_be_immutable
+class EditCustomer extends StatefulWidget {
+  EditCustomer({Key? key, required this.customerModel}) : super(key: key);
+  CustomerModel customerModel;
+
+  @override
+  // ignore: library_private_types_in_public_api
+  _EditCustomerState createState() => _EditCustomerState();
+}
+
+class _EditCustomerState extends State<EditCustomer> {
+  late CustomerModel updatedCustomerModel;
+  String groupValue = '';
+
+  // ignore: prefer_typing_uninitialized_variables
+  var dialogContext;
+  bool expanded = false;
+  final ImagePicker _picker = ImagePicker();
+  bool showProgress = false;
+  double progress = 0.0;
+  XFile? pickedImage;
+  File? imageFile;
+  String? imagePath;
+  late String customerKey;
+  final _formKey = GlobalKey<FormState>();
+
+  void getCustomerKey(String phoneNumber) async {
+    final userId = constUserId;
+    await FirebaseDatabase.instance.ref(userId).child('Customers').orderByKey().get().then((value) {
+      for (var element in value.children) {
+        var data = jsonDecode(jsonEncode(element.value));
+        if (data['phoneNumber'].toString() == phoneNumber) {
+          customerKey = element.key.toString();
+        }
+      }
+    });
+  }
+
+  Future<void> uploadFile(String filePath) async {
+    File file = File(filePath);
+    try {
+      EasyLoading.show(
+        status: 'Uploading... ',
+        dismissOnTap: false,
+      );
+      var snapshot = await FirebaseStorage.instance.ref('Customer Picture/${DateTime.now().millisecondsSinceEpoch}').putFile(file);
+      var url = await snapshot.ref.getDownloadURL();
+      updatedCustomerModel.profilePicture = url.toString();
+    } on firebase_core.FirebaseException catch (e) {
+      EasyLoading.dismiss();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.code.toString())));
+    }
+  }
+
+  @override
+  void initState() {
+    getCustomerKey(widget.customerModel.phoneNumber);
+    updatedCustomerModel = CustomerModel(
+      customerName: widget.customerModel.customerName,
+      phoneNumber: widget.customerModel.phoneNumber,
+      type: widget.customerModel.type,
+      profilePicture: widget.customerModel.profilePicture,
+      emailAddress: widget.customerModel.emailAddress,
+      customerAddress: widget.customerModel.customerAddress,
+      dueAmount: widget.customerModel.dueAmount,
+    );
+    groupValue = widget.customerModel.type;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(builder: (context, cRef, __) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          title: Text(
+            lang.S.of(context).updateContact,
+            style: GoogleFonts.poppins(
+              color: Colors.black,
+            ),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.black),
+          elevation: 0.0,
+        ),
+        body: Consumer(builder: (context, ref, __) {
+          // ignore: unused_local_variable
+          final customerData = ref.watch(customerProvider);
+
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: TextFormField(
+                        initialValue: widget.customerModel.phoneNumber,
+                        readOnly: true,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          labelText: lang.S.of(context).phone,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: TextFormField(
+                        initialValue: widget.customerModel.customerName,
+                        keyboardType: TextInputType.name,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter customer name';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          updatedCustomerModel.customerName = value;
+                        },
+                        decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          labelText: lang.S.of(context).name,
+                          hintText: 'John Doe',
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile(
+                            contentPadding: EdgeInsets.zero,
+                            groupValue: groupValue,
+                            title: Text(
+                              lang.S.of(context).retailer,
+                              maxLines: 1,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.0,
+                              ),
+                            ),
+                            value: 'Retailer',
+                            onChanged: (value) {
+                              setState(() {
+                                groupValue = value.toString();
+                                updatedCustomerModel.type = value.toString();
+                              });
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile(
+                            contentPadding: EdgeInsets.zero,
+                            groupValue: groupValue,
+                            title: Text(
+                              lang.S.of(context).dealer,
+                              maxLines: 1,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.0,
+                              ),
+                            ),
+                            value: 'Dealer',
+                            onChanged: (value) {
+                              setState(() {
+                                groupValue = value.toString();
+                                updatedCustomerModel.type = value.toString();
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile(
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: kMainColor,
+                            groupValue: groupValue,
+                            title: Text(
+                              lang.S.of(context).wholesaler,
+                              maxLines: 1,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.0,
+                              ),
+                            ),
+                            value: 'Wholesaler',
+                            onChanged: (value) {
+                              setState(() {
+                                groupValue = value.toString();
+                                updatedCustomerModel.type = value.toString();
+                              });
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile(
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: kMainColor,
+                            groupValue: groupValue,
+                            title: Text(
+                              lang.S.of(context).supplier,
+                              maxLines: 1,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12.0,
+                              ),
+                            ),
+                            value: 'Supplier',
+                            onChanged: (value) {
+                              setState(() {
+                                groupValue = value.toString();
+                                updatedCustomerModel.type = value.toString();
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Visibility(
+                      visible: showProgress,
+                      child: const CircularProgressIndicator(
+                        color: kMainColor,
+                        strokeWidth: 5.0,
+                      ),
+                    ),
+                    ExpansionPanelList(
+                      expansionCallback: (int index, bool isExpanded) {
+                        setState(() {
+                          expanded = !expanded;
+                        });
+                      },
+                      animationDuration: const Duration(seconds: 1),
+                      elevation: 0,
+                      dividerColor: Colors.white,
+                      children: [
+                        ExpansionPanel(
+                          backgroundColor: Colors.white,
+                          headerBuilder: (BuildContext context, bool isExpanded) {
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextButton(
+                                  child: Text(
+                                    lang.S.of(context).moreInfo,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 20.0,
+                                      color: kMainColor,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      expanded = !expanded;
+                                    });
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                          body: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return Dialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12.0),
+                                          ),
+                                          // ignore: sized_box_for_whitespace
+                                          child: Container(
+                                            height: 200.0,
+                                            width: MediaQuery.of(context).size.width - 80,
+                                            child: Center(
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      pickedImage = await _picker.pickImage(source: ImageSource.gallery);
+                                                      if (pickedImage != null) {
+                                                        setState(() {
+                                                          imageFile = File(pickedImage!.path);
+                                                          imagePath = pickedImage!.path;
+                                                        });
+                                                      }
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Column(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.photo_library_rounded,
+                                                          size: 60.0,
+                                                          color: kMainColor,
+                                                        ),
+                                                        Text(
+                                                          lang.S.of(context).gallery,
+                                                          style: GoogleFonts.poppins(
+                                                            fontSize: 20.0,
+                                                            color: kMainColor,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(
+                                                    width: 40.0,
+                                                  ),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      pickedImage = await _picker.pickImage(source: ImageSource.camera);
+                                                      if (pickedImage != null) {
+                                                        setState(() {
+                                                          imageFile = File(pickedImage!.path);
+                                                          imagePath = pickedImage!.path;
+                                                        });
+                                                      }
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Column(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.camera,
+                                                          size: 60.0,
+                                                          color: kGreyTextColor,
+                                                        ),
+                                                        Text(
+                                                          lang.S.of(context).camera,
+                                                          style: GoogleFonts.poppins(
+                                                            fontSize: 20.0,
+                                                            color: kGreyTextColor,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      });
+                                },
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      height: 120,
+                                      width: 120,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.black54, width: 1),
+                                        borderRadius: const BorderRadius.all(Radius.circular(120)),
+                                        image: (imageFile != null)
+                                            ? DecorationImage(
+                                                image: FileImage(imageFile!),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : (updatedCustomerModel.profilePicture.isNotEmpty)
+                                                ? DecorationImage(
+                                                    image: NetworkImage(updatedCustomerModel.profilePicture),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : const DecorationImage(
+                                                    image: AssetImage('images/profile.png'),
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 35,
+                                        width: 35,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.white, width: 2),
+                                          borderRadius: const BorderRadius.all(Radius.circular(120)),
+                                          color: kMainColor,
+                                        ),
+                                        child: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          size: 20,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: TextFormField(
+                                  initialValue: widget.customerModel.emailAddress ?? '',
+                                  keyboardType: TextInputType.emailAddress,
+                                  onChanged: (value) {
+                                    updatedCustomerModel.emailAddress = value;
+                                  },
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    floatingLabelBehavior: FloatingLabelBehavior.always,
+                                    labelText: lang.S.of(context).email,
+                                    hintText: 'example@example.com',
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: TextFormField(
+                                  initialValue: widget.customerModel.customerAddress ?? '',
+                                  keyboardType: TextInputType.name,
+                                  maxLines: 1,
+                                  onChanged: (value) {
+                                    updatedCustomerModel.customerAddress = value;
+                                  },
+                                  decoration: InputDecoration(
+                                      border: const OutlineInputBorder(),
+                                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                                      labelText: lang.S.of(context).address,
+                                      hintText: 'Placentia, California(CA), 92870'),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: TextFormField(
+                                  readOnly: true,
+                                  initialValue: widget.customerModel.dueAmount,
+                                  keyboardType: TextInputType.name,
+                                  maxLines: 1,
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    floatingLabelBehavior: FloatingLabelBehavior.always,
+                                    labelText: lang.S.of(context).previousDue,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          isExpanded: expanded,
+                        ),
+                      ],
+                    ),
+                    ButtonGlobalWithoutIcon(
+                        buttontext: lang.S.of(context).update,
+                        buttonDecoration: kButtonDecoration.copyWith(color: kMainColor),
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            try {
+                              EasyLoading.show(status: 'Loading...', dismissOnTap: false);
+
+                              // Upload image if a new one was selected
+                              if (imagePath != null) {
+                                await uploadFile(imagePath!);
+                              }
+
+                              DatabaseReference ref = FirebaseDatabase.instance.ref("$constUserId/Customers/$customerKey");
+                              await ref.update({
+                                'customerName': updatedCustomerModel.customerName,
+                                'type': updatedCustomerModel.type,
+                                'profilePicture': updatedCustomerModel.profilePicture,
+                                'emailAddress': updatedCustomerModel.emailAddress ?? '',
+                                'customerAddress': updatedCustomerModel.customerAddress ?? '',
+                              });
+
+                              EasyLoading.showSuccess('Updated Successfully', duration: const Duration(milliseconds: 500));
+
+                              Future.delayed(const Duration(milliseconds: 100), () {
+                                cRef.refresh(customerProvider);
+                                const CustomerList().launch(context, isNewTask: true);
+                              });
+                            } catch (e) {
+                              EasyLoading.dismiss();
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                            }
+                          }
+                        },
+                        buttonTextColor: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      );
+    });
+  }
+}

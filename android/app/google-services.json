@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "830746184414",
+    "firebase_url": "https://ezypos-c26f4-default-rtdb.firebaseio.com",
+    "project_id": "ezypos-c26f4",
+    "storage_bucket": "ezypos-c26f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830746184414:android:1f0d8c74b62c1c76b3904f",
+        "android_client_info": {
+          "package_name": "com.sayemtech.ezypos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6ZbV0uRISITcc5FHQvh97-1pEkMVACO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
