@@ -1,6 +1,8 @@
 name: mobile_pos
-description: A new Flutter project.
-author: Jawharsayem <Jawharsayem@users.noreply.github.com>
+description: A Flutter-based point-of-sale application for sales, inventory, and business management, built with Firebase for Android, iOS, and web.
+author: Sayem Jawhar
+repository: https://github.com/Jawharsayem/ezypos
+
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
