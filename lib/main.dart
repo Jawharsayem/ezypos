@@ -68,7 +68,7 @@ class MyApp extends StatelessWidget {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 supportedLocales: S.delegate.supportedLocales,
-                title: 'SalesPro',
+                title: 'EzyPOS',
                 initialRoute: '/',
                 builder: EasyLoading.init(),
                 routes: {
